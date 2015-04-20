@@ -42,6 +42,7 @@ void eval(char *cmdline)
 
     if (!builtin_command(argv)) {
         if ((pid = fork()) == 0) {   /* Child runs user job */
+            
             if (execve(argv[0], argv, environ) < 0) {
                     printf("%s: Command not found.\n", argv[0]);
                     exit(0);
@@ -57,6 +58,12 @@ void eval(char *cmdline)
         }
         else {
             printf("%d %s", pid, cmdline);
+            
+            // WNOHANG|WUNTRACED: Return immediately, with a return value of 0, if
+            // the child process has stopped or terminated, or with a return value
+            // equal to the child process pid if the child process stopped or terminated
+            int childStatus;
+            waitpid(pid, &childStatus, WNOHANG|WUNTRACED);
         }
     }
     return;
