@@ -10,15 +10,16 @@ int builtin_command(char **argv);
 int main() 
 {
     char cmdline[MAXLINE]; /* Command line */
-
+    
     while (1) {
         /* Read */
-        printf("> ");
-        fgets(cmdline, MAXLINE, stdin);
+        printf("prompt> ");
+        Fgets(cmdline, MAXLINE, stdin);
         if (feof(stdin)) {
             exit(0);
         }
-
+        
+        
         /* Evaluate */
         eval(cmdline);
     } 
@@ -33,6 +34,7 @@ void eval(char *cmdline)
     char buf[MAXLINE];   /* Holds modified command line */
     int bg;              /* Should the job run in bg or fg? */
     pid_t pid;           /* Process id */
+    int ip, op;
     
     strcpy(buf, cmdline);
     bg = parseline(buf, argv); 
@@ -41,19 +43,23 @@ void eval(char *cmdline)
     }
 
     if (!builtin_command(argv)) {
-        if ((pid = fork()) == 0) {   /* Child runs user job */
+        if ((pid = Fork()) == 0) {   /* Child runs user job */
             
             if (execve(argv[0], argv, environ) < 0) {
                     printf("%s: Command not found.\n", argv[0]);
                     exit(0);
             }
+            /*if (execve(argv[1], argv, environ) < 0) {
+                printf("%s: Command not found.\n", argv[1]);
+                exit(0);
+            }*/
         }
 
         /* Parent waits for foreground job to terminate */
         if (!bg) {
             int status;
             if (waitpid(pid, &status, 0) < 0) {
-                //unix_error("waitfg: waitpid error");
+                unix_error("waitfg: waitpid error");
             }
         }
         else {
@@ -65,6 +71,15 @@ void eval(char *cmdline)
             int childStatus;
             waitpid(pid, &childStatus, WNOHANG|WUNTRACED);
         }
+        
+        /*if(*argv[1] == '<') {
+            //dup2(ip, op);
+            //read(ip, cmdline, 1);
+            printf("testing\n");
+        }
+        else if (*argv[1] == '>') {
+            
+        }*/
     }
     return;
 }
@@ -122,3 +137,5 @@ int parseline(char *buf, char **argv)
     return bg;
 }
 /* $end parseline */
+
+
