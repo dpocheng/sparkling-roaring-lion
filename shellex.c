@@ -1,16 +1,22 @@
-/* $begin shellmain */
 #include "csapp.h"
 #define MAXARGS   128
 
 /* function prototypes */
 void eval(char *cmdline);
 int parseline(char *buf, char **argv);
-int builtin_command(char **argv); 
+int builtin_command(char **argv);
 
+/* $begin shellmain */
 int main() 
 {
     char cmdline[MAXLINE]; /* Command line */
-    
+
+    /* Install signal handler to handle reaping of bg processes: use SIG_IGN */
+    if (signal(SIGCHLD, SIG_IGN) == SIG_ERR) {
+        perror(0);
+        exit(1);
+    }
+
     while (1) {
         /* Read */
         printf("prompt> ");
@@ -19,18 +25,17 @@ int main()
             exit(0);
         }
         
-        
         /* Evaluate */
         eval(cmdline);
     } 
 }
 /* $end shellmain */
-  
+
 /* $begin eval */
 /* eval - Evaluate a command line */
 void eval(char *cmdline) 
 {
-    char *argv[MAXARGS]; /* Argument list execve() */
+    char *argv[MAXARGS]; /* Argument list Execve() */
     char buf[MAXLINE];   /* Holds modified command line */
     int bg;              /* Should the job run in bg or fg? */
     pid_t pid;           /* Process id */
@@ -39,47 +44,27 @@ void eval(char *cmdline)
     strcpy(buf, cmdline);
     bg = parseline(buf, argv); 
     if (argv[0] == NULL) {
-	 return;   /* Ignore empty lines */
+        return;   /* Ignore empty lines */
     }
 
     if (!builtin_command(argv)) {
-        if ((pid = Fork()) == 0) {   /* Child runs user job */
-            
+        pid = Fork();     /* This allows for non-blocking of slow system calls */
+        if (pid == 0) {   /* Child runs user job */
             if (execve(argv[0], argv, environ) < 0) {
                     printf("%s: Command not found.\n", argv[0]);
                     exit(0);
             }
-            /*if (execve(argv[1], argv, environ) < 0) {
-                printf("%s: Command not found.\n", argv[1]);
-                exit(0);
-            }*/
         }
 
         /* Parent waits for foreground job to terminate */
         if (!bg) {
-            int status;
-            if (waitpid(pid, &status, 0) < 0) {
-                unix_error("waitfg: waitpid error");
-            }
+            /* Block this process until sigchldHandler returns */
+            Pause();
         }
         else {
             printf("%d %s", pid, cmdline);
-            
-            // WNOHANG|WUNTRACED: Return immediately, with a return value of 0, if
-            // the child process has stopped or terminated, or with a return value
-            // equal to the child process pid if the child process stopped or terminated
-            int childStatus;
-            waitpid(pid, &childStatus, WNOHANG|WUNTRACED);
+            /* Reap the child processes in the background */
         }
-        
-        /*if(*argv[1] == '<') {
-            //dup2(ip, op);
-            //read(ip, cmdline, 1);
-            printf("testing\n");
-        }
-        else if (*argv[1] == '>') {
-            
-        }*/
     }
     return;
 }
@@ -137,5 +122,3 @@ int parseline(char *buf, char **argv)
     return bg;
 }
 /* $end parseline */
-
-

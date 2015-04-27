@@ -58,7 +58,7 @@ void Execve(const char *filename, char *const argv[], char *const envp[])
 }
 
 /* $begin wait */
-pid_t Wait(int *status) 
+pid_t Wait(int *status)
 {
     pid_t pid;
 
@@ -68,12 +68,13 @@ pid_t Wait(int *status)
 }
 /* $end wait */
 
-pid_t Waitpid(pid_t pid, int *iptr, int options) 
+pid_t Waitpid(pid_t pid, int *iptr, int options)
 {
     pid_t retpid;
 
-    if ((retpid  = waitpid(pid, iptr, options)) < 0) 
-	unix_error("Waitpid error");
+    retpid  = waitpid(pid, iptr, options);
+    if (retpid < 0 && errno != ECHILD)
+        unix_error("Waitpid error");
     return(retpid);
 }
 
@@ -131,8 +132,10 @@ handler_t *Signal(int signum, handler_t *handler)
     sigemptyset(&action.sa_mask); /* Block sigs of type being handled */
     action.sa_flags = SA_RESTART; /* Restart syscalls if possible */
 
-    if (sigaction(signum, &action, &old_action) < 0)
-	unix_error("Signal error");
+    if (sigaction(signum, &action, &old_action) < 0) {
+        unix_error("Signal error");
+    }
+    /* Returns the un-overidden signal action */
     return (old_action.sa_handler);
 }
 /* $end sigaction */
