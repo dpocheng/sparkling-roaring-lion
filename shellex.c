@@ -67,7 +67,8 @@ void eval(char *cmdline)
     }
 
     if (!builtin_command(argv)) {
-        if ((pid = Fork()) == 0) {   /* Child runs user job */
+        pid = Fork();     /* This allows for non-blocking of slow system calls */
+        if (pid == 0) {   /* Child runs user job */
             if (execve(argv[0], argv, environ) < 0) {
                     printf("%s: Command not found.\n", argv[0]);
                     exit(0);
@@ -89,11 +90,8 @@ void eval(char *cmdline)
             printf("%d %s", pid, cmdline);
 
             /* Reap the child processes in the background */
-            /* Install signal handler to handle reaping of bg processes */
-            if(Signal(SIGCHLD, sigchldHandler) == SIG_ERR) {
-                unix_error("signal error");
-            }
-
+            /* Install signal handler to handle reaping of bg processes using Signal wrapper */
+            Signal(SIGCHLD, sigchldHandler);
         }
         
         /*if(*argv[1] == '<') {

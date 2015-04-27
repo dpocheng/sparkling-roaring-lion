@@ -8,7 +8,7 @@ To-Do
 Notes
 =====
 From Ian:
-After looking at how we were handling background process reaping, I found that we were doing it wrong
+1) After looking at how we were handling background process reaping, I found that we were doing it wrong
 and that no reaping actually took place. Load the version of shellex.c and csapp.c that Dennis
 committed on 4/22/15 @ 10:55AM called with the comment "Add csapp.c". Then compile and run the shell.
 Now enter any non-built-in command (like test.c that I committed with this) without the & argument.
@@ -20,3 +20,10 @@ the background. Wait a few seconds for the process to finish, and then press con
 ps to see the processes. You will see that there is a child process that is a zombie which should be
 denoted by <defunct> (on my Mac it was in parenthesis instead). The code we had up to this commit doesn't
 reap background processes correctly.
+
+2) After changing the code to start using a signal handler, the code may or may not reap the child background
+process. The signal handler is called, but an error occurs and ends the shell process. I'm not sure if
+the child process is reaped by the signal handler and then an error occurs and exits, or if the child process
+is reaped by the system upon the failure of the shell (which would reap all zombie child processes).
+
+The error is "waitpid error: Undefined error: 0"
