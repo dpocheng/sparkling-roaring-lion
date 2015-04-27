@@ -2,38 +2,20 @@
 #define MAXARGS   128
 
 /* function prototypes */
-void sigchldHandler(int sig);
 void eval(char *cmdline);
 int parseline(char *buf, char **argv);
 int builtin_command(char **argv);
-
-/* $begin sigchldHandler */
-/* sigchldHandler - Handles the SIGCHLD signal from child process sent to the parent
- *                  process to properly reap the processes that run in the background */
-void sigchldHandler(int sig) {
-    pid_t pid;
-    /* -1   --> waitset consists of all of the parent's child processes
-     * NULL --> discard the returned status from the child process that is reaped
-     * 0    --> default, suspends the execution of the calling process until a child
-     *          process in its waitset terminates. (In this case we are calling Waitpid
-     *          only after a child in the waitset has terminated, and therefore will not
-     *          block execution) */
-    while((pid = Waitpid(-1, NULL, 0)) > 0) {
-        /* Just a debug statement */
-        printf("sigchldHandler reaped background child process %d\n", (int)pid);
-
-        if(errno != ECHILD) {
-            unix_error("waitpid error");
-        }
-        return;
-    }
-}
-/* $end sigchldHandler */
 
 /* $begin shellmain */
 int main() 
 {
     char cmdline[MAXLINE]; /* Command line */
+
+    /* Install signal handler to handle reaping of bg processes: use SIG_IGN */
+    if (signal(SIGCHLD, SIG_IGN) == SIG_ERR) {
+        perror(0);
+        exit(1);
+    }
 
     while (1) {
         /* Read */
@@ -42,7 +24,6 @@ int main()
         if (feof(stdin)) {
             exit(0);
         }
-        
         
         /* Evaluate */
         eval(cmdline);
@@ -73,35 +54,17 @@ void eval(char *cmdline)
                     printf("%s: Command not found.\n", argv[0]);
                     exit(0);
             }
-            /*if (Execve(argv[1], argv, environ) < 0) {
-                printf("%s: Command not found.\n", argv[1]);
-                exit(0);
-            }*/
         }
 
         /* Parent waits for foreground job to terminate */
         if (!bg) {
-            int status;
-            if (Waitpid(pid, &status, 0) < 0) {
-                unix_error("waitfg: Waitpid error");
-            }
+            /* Block this process until sigchldHandler returns */
+            Pause();
         }
         else {
             printf("%d %s", pid, cmdline);
-
             /* Reap the child processes in the background */
-            /* Install signal handler to handle reaping of bg processes using Signal wrapper */
-            Signal(SIGCHLD, sigchldHandler);
         }
-        
-        /*if(*argv[1] == '<') {
-            //dup2(ip, op);
-            //read(ip, cmdline, 1);
-            printf("testing\n");
-        }
-        else if (*argv[1] == '>') {
-            
-        }*/
     }
     return;
 }
