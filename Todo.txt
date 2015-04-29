@@ -27,3 +27,6 @@ the child process is reaped by the signal handler and then an error occurs and e
 is reaped by the system upon the failure of the shell (which would reap all zombie child processes).
 
 The error is "waitpid error: Undefined error: 0"
+
+
+- Reset redirection IO for next command

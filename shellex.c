@@ -12,16 +12,19 @@ int main()
     char cmdline[MAXLINE]; /* Command line */
 
     /* Install signal handler to handle reaping of bg processes: use SIG_IGN */
-    if (signal(SIGCHLD, SIG_IGN) == SIG_ERR) {
+    if (signal(SIGCHLD, SIG_IGN) == SIG_ERR)
+    {
         perror(0);
         exit(1);
     }
 
-    while (1) {
+    while (1)
+    {
         /* Read */
         printf("prompt> ");
         Fgets(cmdline, MAXLINE, stdin);
-        if (feof(stdin)) {
+        if (feof(stdin))
+        {
             exit(0);
         }
         
@@ -39,44 +42,57 @@ void eval(char *cmdline)
     char buf[MAXLINE];   /* Holds modified command line */
     int bg;              /* Should the job run in bg or fg? */
     pid_t pid;           /* Process id */
-    char *cusarg[MAXARGS];
-    int argb = 0, argc; // argb is acting like a 2-1 decoder between built-in command and customized command
+    int argc;
     int in, out;
+    int redirectIO = 0;  /* A boolean to save if redirection has been detected */
+    int current_input, current_output;
     
     strcpy(buf, cmdline);
-    bg = parseline(buf, argv); 
-    if (argv[0] == NULL) {
+    bg = parseline(buf, argv);
+    
+    if (argv[0] == NULL)
+    {
         return;   /* Ignore empty lines */
     }
 
     if (!builtin_command(argv)) {
         pid = Fork();     /* This allows for non-blocking of slow system calls */
+        
         if (pid == 0) {   /* Child runs user job */
             while (argv[argc] != '\0')
             {
+                // Store stdin & stdout file handles
+                current_input = dup(0);
+                current_output = dup(1);
+                
+                // Redirect input and output if '<' or '>' found
                 if (*argv[argc] == '<' || *argv[argc] == '>')
                 {
-                    int index;
-                    for (index = 0; index < argc; index++)
+                    if (*argv[argc] == '<' && argv[argc+1] != '\0')
                     {
-                        // This statement is a pointer to the value of argv, so maybe need to use something like strcpy
-                        cusarg[index] = argv[index];
+                        in = Open(argv[argc+1], O_RDONLY, S_IRUSR | S_IXUSR);
+                        Dup2(in, 0);
+                        Close(in);
                     }
-                    // Will uncomment this after customized command array finished
-                    // argb = 1;
-                    if (*argv[argc] == '<')
+                    
+                    if (*argv[argc] == '>' && argv[argc+1] != '\0')
                     {
-                        
+                        out = Open(argv[argc+1], O_WRONLY | O_TRUNC | O_CREAT, S_IRUSR | S_IRGRP | S_IWGRP | S_IWUSR);
+                        Dup2(out, 1);
+                        Close(out);
                     }
-                    if (*argv[argc] == '>')
-                    {
-                        
-                    }
+                    redirectIO = 1;     // Redirection was set
                 }
                 argc++;
             }
-            
-            if (argb == 0 && execve(argv[0], argv, environ) < 0) {
+            if(!redirectIO) {
+                // Reset to defaults
+                Dup2(current_input, 0);
+                Close(0);
+                Dup2(current_output, 1);
+                Close(1);
+            }
+            if (execve(argv[0], argv, environ) < 0) {
                     printf("%s: Command not found.\n", argv[0]);
                     exit(0);
             }
@@ -92,6 +108,7 @@ void eval(char *cmdline)
             /* Reap the child processes in the background */
         }
     }
+    redirectIO = 0;     // Reset for next loop iteration
     return;
 }
 
