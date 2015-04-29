@@ -72,6 +72,7 @@ void eval(char *cmdline)
                     {
                         in = Open(argv[argc+1], O_RDONLY, S_IRUSR | S_IXUSR);
                         Dup2(in, 0);
+                        read(in, buf, 1024);
                         Close(in);
                     }
                     
@@ -87,10 +88,10 @@ void eval(char *cmdline)
             }
             if(!redirectIO) {
                 // Reset to defaults
-                Dup2(current_input, 0);
-                Close(0);
-                Dup2(current_output, 1);
-                Close(1);
+                Dup2(in, current_input);
+                Close(current_input);
+                Dup2(out, current_output);
+                Close(current_output);
             }
             if (execve(argv[0], argv, environ) < 0) {
                     printf("%s: Command not found.\n", argv[0]);
