@@ -39,7 +39,9 @@ void eval(char *cmdline)
     char buf[MAXLINE];   /* Holds modified command line */
     int bg;              /* Should the job run in bg or fg? */
     pid_t pid;           /* Process id */
-    int ip, op;
+    char *cusarg[MAXARGS];
+    int argb = 0, argc; // argb is acting like a 2-1 decoder between built-in command and customized command
+    int in, out;
     
     strcpy(buf, cmdline);
     bg = parseline(buf, argv); 
@@ -50,7 +52,31 @@ void eval(char *cmdline)
     if (!builtin_command(argv)) {
         pid = Fork();     /* This allows for non-blocking of slow system calls */
         if (pid == 0) {   /* Child runs user job */
-            if (execve(argv[0], argv, environ) < 0) {
+            while (argv[argc] != '\0')
+            {
+                if (*argv[argc] == '<' || *argv[argc] == '>')
+                {
+                    int index;
+                    for (index = 0; index < argc; index++)
+                    {
+                        // This statement is a pointer to the value of argv, so maybe need to use something like strcpy
+                        cusarg[index] = argv[index];
+                    }
+                    // Will uncomment this after customized command array finished
+                    // argb = 1;
+                    if (*argv[argc] == '<')
+                    {
+                        
+                    }
+                    if (*argv[argc] == '>')
+                    {
+                        
+                    }
+                }
+                argc++;
+            }
+            
+            if (argb == 0 && execve(argv[0], argv, environ) < 0) {
                     printf("%s: Command not found.\n", argv[0]);
                     exit(0);
             }
