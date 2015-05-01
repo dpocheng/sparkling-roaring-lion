@@ -2,21 +2,42 @@
 #define MAXARGS   128
 
 /* function prototypes */
+void sigchldHandler(int sig);
 void eval(char *cmdline);
 int parseline(char *buf, char **argv);
 int builtin_command(char **argv);
+
+/* $begin sigchldHandler */
+/* sigchldHandler - Handles the SIGCHLD signal from child process sent to the parent
+ *                  process to properly reap the processes that run in the background */
+void sigchldHandler(int sig) {
+    pid_t pid;
+    /* -1   --> waitset consists of all of the parent's child processes
+     * NULL --> discard the returned status from the child process that is reaped
+     * 0    --> default, suspends the execution of the calling process until a child
+     *          process in its waitset terminates. (In this case we are calling Waitpid
+     *          only after a child in the waitset has terminated, and therefore will not
+     *          block execution) */
+    while((pid = Waitpid(-1, NULL, 0)) > 0) {
+        switch (errno) {
+            case EINTR:
+                continue;
+
+            case ECHILD:
+                continue;
+        }
+        return;
+    }
+}
+/* $end sigchldHandler */
 
 /* $begin shellmain */
 int main() 
 {
     char cmdline[MAXLINE]; /* Command line */
 
-    /* Install signal handler to handle reaping of bg processes: use SIG_IGN */
-    if (signal(SIGCHLD, SIG_IGN) == SIG_ERR)
-    {
-        perror(0);
-        exit(1);
-    }
+    // Register the Signal handler to reap child processes in the foreground and the background
+    Signal(SIGCHLD, sigchldHandler);
 
     while (1)
     {
@@ -40,6 +61,7 @@ void eval(char *cmdline)
 {
     char *argv[MAXARGS]; /* Argument list Execve() */
     char buf[MAXLINE];   /* Holds modified command line */
+    char redirectBuf[MAXLINE];
     int bg;              /* Should the job run in bg or fg? */
     pid_t pid;           /* Process id */
     int argc;
@@ -57,14 +79,14 @@ void eval(char *cmdline)
 
     if (!builtin_command(argv)) {
         pid = Fork();     /* This allows for non-blocking of slow system calls */
-        
-        if (pid == 0) {   /* Child runs user job */
-            while (argv[argc] != '\0')
-            {
-                // Store stdin & stdout file handles
-                current_input = dup(0);
-                current_output = dup(1);
-                
+
+        /* Child runs user job */
+        if (pid == 0) {
+            // Store stdin & stdout file handles
+            current_input = dup(0);
+            current_output = dup(1);
+
+            while (argv[argc] != '\0') {
                 // Redirect input and output if '<' or '>' found
                 if (*argv[argc] == '<' || *argv[argc] == '>')
                 {
@@ -72,32 +94,25 @@ void eval(char *cmdline)
                     {
                         in = Open(argv[argc+1], O_RDONLY, S_IRUSR | S_IXUSR);
                         Dup2(in, 0);
-                        read(in, buf, 1024);
+                        read(in, redirectBuf, MAXBUF);
                         Close(in);
+                        strcpy(buf, redirectBuf);
                     }
-                    
                     if (*argv[argc] == '>' && argv[argc+1] != '\0')
                     {
                         out = Open(argv[argc+1], O_WRONLY | O_TRUNC | O_CREAT, S_IRUSR | S_IRGRP | S_IWGRP | S_IWUSR);
                         Dup2(out, 1);
                         Close(out);
                     }
-                    redirectIO = 1;     // Redirection was set
                 }
                 argc++;
             }
-            if(!redirectIO) {
-                // Reset to defaults
-                Dup2(in, current_input);
-                Close(current_input);
-                Dup2(out, current_output);
-                Close(current_output);
-            }
             if (execve(argv[0], argv, environ) < 0) {
-                    printf("%s: Command not found.\n", argv[0]);
-                    exit(0);
+                printf("%s: Command not found.\n", argv[0]);
+                exit(0);
             }
         }
+
 
         /* Parent waits for foreground job to terminate */
         if (!bg) {
@@ -109,7 +124,6 @@ void eval(char *cmdline)
             /* Reap the child processes in the background */
         }
     }
-    redirectIO = 0;     // Reset for next loop iteration
     return;
 }
 

@@ -2,9 +2,7 @@
 #include <stdlib.h>
 
 int main(int argc, char **argv) {
-    for(int i = 0; i < 5; i++) {
-        printf("%s ", argv[argc - 1]);
-    }
-    printf("\n");
+    printf("%s", argv[1]);
+    fflush(stdin);
     exit(0);
 }
