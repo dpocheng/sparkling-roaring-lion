@@ -2,7 +2,6 @@
 #define MAXARGS 128
 
 /* function prototypes */
-void sigchldHandler(int sig);
 void eval(char *cmdline);
 int parseline(char *buf, char **argv);
 int builtin_command(char **argv);
@@ -39,13 +38,11 @@ int main()
     // Register the Signal handler to reap child processes in the foreground and the background
     Signal(SIGCHLD, sigchldHandler);
 
-    while (1)
-    {
+    while (1) {
         /* Read */
         printf("prompt> ");
         Fgets(cmdline, MAXLINE, stdin);
-        if (feof(stdin))
-        {
+        if (feof(stdin)) {
             exit(0);
         }
         
@@ -61,19 +58,16 @@ void eval(char *cmdline)
 {
     char *argv[MAXARGS]; /* Argument list Execve() */
     char buf[MAXLINE];   /* Holds modified command line */
-    char redirectBuf[MAXLINE];
     int bg;              /* Should the job run in bg or fg? */
     pid_t pid;           /* Process id */
     int argc;
     int in, out;
-    int redirectIO = 0;  /* A boolean to save if redirection has been detected */
     int current_input, current_output;
     
     strcpy(buf, cmdline);
     bg = parseline(buf, argv);
     
-    if (argv[0] == NULL)
-    {
+    if (argv[0] == NULL) {
         return;   /* Ignore empty lines */
     }
 
