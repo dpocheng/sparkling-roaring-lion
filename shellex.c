@@ -1,5 +1,5 @@
 #include "csapp.h"
-#define MAXARGS   128
+#define MAXARGS 128
 
 /* function prototypes */
 void sigchldHandler(int sig);
@@ -88,19 +88,14 @@ void eval(char *cmdline)
 
             while (argv[argc] != '\0') {
                 // Redirect input and output if '<' or '>' found
-                if (*argv[argc] == '<' || *argv[argc] == '>')
-                {
-                    if (*argv[argc] == '<' && argv[argc+1] != '\0')
-                    {
-                        in = Open(argv[argc+1], O_RDONLY, S_IRUSR | S_IXUSR);
+                if (*argv[argc] == '<' || *argv[argc] == '>') {
+                    if (*argv[argc] == '<' && argv[argc + 1] != '\0') {
+                        in = Open(argv[argc + 1], O_RDONLY, S_IRUSR | S_IXUSR);
                         Dup2(in, 0);
-                        read(in, redirectBuf, MAXBUF);
                         Close(in);
-                        strcpy(buf, redirectBuf);
                     }
-                    if (*argv[argc] == '>' && argv[argc+1] != '\0')
-                    {
-                        out = Open(argv[argc+1], O_WRONLY | O_TRUNC | O_CREAT, S_IRUSR | S_IRGRP | S_IWGRP | S_IWUSR);
+                    if (*argv[argc] == '>' && argv[argc + 1] != '\0') {
+                        out = Open(argv[argc + 1], O_WRONLY | O_TRUNC | O_CREAT, S_IRUSR | S_IRGRP | S_IWGRP | S_IWUSR);
                         Dup2(out, 1);
                         Close(out);
                     }

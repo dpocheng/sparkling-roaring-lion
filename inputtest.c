@@ -2,7 +2,8 @@
 #include <stdlib.h>
 
 int main(int argc, char **argv) {
-    printf("%s", argv[1]);
-    fflush(stdin);
-    exit(0);
+    char s[128];
+    scanf("%[^\n]", s);
+    printf("%s\n", s);
+    return 0;
 }
